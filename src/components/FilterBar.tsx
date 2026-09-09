@@ -11,13 +11,13 @@ import {
   X, 
   Check, 
   ArrowUpDown, 
-  Map as MapIcon, 
-  Grid3X3, 
-  Columns2,
-  Sparkles
+  Sparkles,
+  Building2,
+  Globe
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { PropertyType } from '../types';
+import { COUNTRIES_AND_CITIES } from '../data/locations';
 
 export const FilterBar: React.FC = () => {
   const { 
@@ -25,14 +25,27 @@ export const FilterBar: React.FC = () => {
     setFilters, 
     resetFilters, 
     properties, 
-    viewMode, 
-    setViewMode 
+    isObjectsDrawerOpen,
+    setIsObjectsDrawerOpen 
   } = useApp();
 
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
 
-  // Available unique cities in properties
-  const availableCities = Array.from(new Set(properties.map(p => p.city)));
+  // Selected country object
+  const selectedCountryObj = COUNTRIES_AND_CITIES.find(c => c.name === filters.country);
+
+  // Available cities based on selected country or all
+  const availableCities = selectedCountryObj 
+    ? selectedCountryObj.cities 
+    : COUNTRIES_AND_CITIES.flatMap(c => c.cities);
+
+  const handleCountryChange = (countryName: string) => {
+    setFilters(prev => ({
+      ...prev,
+      country: countryName,
+      city: '', // reset city when country changes
+    }));
+  };
 
   const propertyTypeButtons: { label: string; value: 'all' | PropertyType; icon: any }[] = [
     { label: 'Все объекты', value: 'all', icon: Home },
@@ -72,17 +85,18 @@ export const FilterBar: React.FC = () => {
   const activeFiltersCount = 
     (filters.rentMode !== 'all' ? 1 : 0) +
     (filters.propertyType !== 'all' ? 1 : 0) +
+    (filters.country ? 1 : 0) +
     (filters.city ? 1 : 0) +
     (filters.minPrice > 0 || filters.maxPrice < 300000 ? 1 : 0) +
     (filters.guests > 1 ? 1 : 0) +
     filters.amenities.length;
 
   return (
-    <div className="bg-white border-b border-slate-200 py-3 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
+    <div className="bg-white border-b border-slate-200 py-2.5 shadow-xs shrink-0 z-10">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-2.5">
         
         {/* Top search controls bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 sm:gap-3">
           
           {/* Main search input with city and keyword */}
           <div className="flex-1 flex items-center bg-slate-100/90 rounded-2xl border border-slate-200 px-3 py-1.5 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-500 transition-all">
@@ -105,19 +119,57 @@ export const FilterBar: React.FC = () => {
             )}
           </div>
 
+          {/* Direct "Все объекты" toggle button placed right next to search */}
+          <button
+            id="btn-toggle-objects-drawer"
+            onClick={() => setIsObjectsDrawerOpen(!isObjectsDrawerOpen)}
+            className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer border shrink-0 ${
+              isObjectsDrawerOpen
+                ? 'bg-rose-600 border-rose-600 text-white shadow-sm shadow-rose-600/20 ring-2 ring-rose-600/30'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800'
+            }`}
+            title="Открыть список всех объектов рядом с поиском"
+          >
+            <Building2 className="w-4 h-4 text-rose-500" />
+            <span>Все объекты</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+              isObjectsDrawerOpen ? 'bg-white text-rose-600' : 'bg-rose-100 text-rose-700'
+            }`}>
+              {properties.length}
+            </span>
+          </button>
+
+          {/* Country selector dropdown */}
+          <div className="relative shrink-0 min-w-[140px]">
+            <div className="flex items-center bg-slate-100/90 rounded-2xl border border-slate-200 px-3 py-1.5">
+              <Globe className="w-4 h-4 text-rose-600 mr-1.5 shrink-0" />
+              <select
+                id="filter-country-select"
+                value={filters.country}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                className="w-full bg-transparent text-xs text-slate-800 outline-hidden font-medium cursor-pointer"
+              >
+                <option value="">Все страны (10)</option>
+                {COUNTRIES_AND_CITIES.map(c => (
+                  <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* City selector dropdown */}
           <div className="relative shrink-0 min-w-[140px]">
             <div className="flex items-center bg-slate-100/90 rounded-2xl border border-slate-200 px-3 py-1.5">
-              <MapPin className="w-4 h-4 text-rose-600 mr-2 shrink-0" />
+              <MapPin className="w-4 h-4 text-rose-600 mr-1.5 shrink-0" />
               <select
                 id="filter-city-select"
                 value={filters.city}
                 onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value }))}
                 className="w-full bg-transparent text-xs text-slate-800 outline-hidden font-medium cursor-pointer"
               >
-                <option value="">Все города</option>
+                <option value="">{filters.country ? 'Все города страны' : 'Все города'}</option>
                 {availableCities.map(city => (
-                  <option key={city} value={city}>{city}</option>
+                  <option key={city.name} value={city.name}>{city.name}</option>
                 ))}
               </select>
             </div>
@@ -128,7 +180,7 @@ export const FilterBar: React.FC = () => {
             <button
               id="filter-rent-mode-all"
               onClick={() => setFilters(prev => ({ ...prev, rentMode: 'all' }))}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
                 filters.rentMode === 'all'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
@@ -139,7 +191,7 @@ export const FilterBar: React.FC = () => {
             <button
               id="filter-rent-mode-daily"
               onClick={() => setFilters(prev => ({ ...prev, rentMode: 'daily' }))}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
                 filters.rentMode === 'daily'
                   ? 'bg-rose-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
@@ -150,7 +202,7 @@ export const FilterBar: React.FC = () => {
             <button
               id="filter-rent-mode-monthly"
               onClick={() => setFilters(prev => ({ ...prev, rentMode: 'monthly' }))}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
                 filters.rentMode === 'monthly'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
@@ -160,12 +212,12 @@ export const FilterBar: React.FC = () => {
             </button>
           </div>
 
-          {/* Filter modal & Sort */}
+          {/* Filter modal */}
           <div className="flex items-center gap-2">
             <button
               id="btn-advanced-filters"
               onClick={() => setIsAdvancedModalOpen(true)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-2 px-3 py-2 rounded-2xl border text-xs font-semibold transition-all cursor-pointer ${
                 activeFiltersCount > 0 
                   ? 'bg-rose-50 border-rose-300 text-rose-700' 
                   : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
@@ -179,40 +231,6 @@ export const FilterBar: React.FC = () => {
                 </span>
               )}
             </button>
-
-            {/* View Mode Switcher */}
-            <div className="hidden sm:inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200">
-              <button
-                id="view-mode-split"
-                onClick={() => setViewMode('split')}
-                title="Карта и список"
-                className={`p-1.5 rounded-xl transition-all ${
-                  viewMode === 'split' ? 'bg-white text-rose-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Columns2 className="w-4 h-4" />
-              </button>
-              <button
-                id="view-mode-grid"
-                onClick={() => setViewMode('grid')}
-                title="Только список"
-                className={`p-1.5 rounded-xl transition-all ${
-                  viewMode === 'grid' ? 'bg-white text-rose-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </button>
-              <button
-                id="view-mode-map"
-                onClick={() => setViewMode('map')}
-                title="Только карта"
-                className={`p-1.5 rounded-xl transition-all ${
-                  viewMode === 'map' ? 'bg-white text-rose-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <MapIcon className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </div>
 

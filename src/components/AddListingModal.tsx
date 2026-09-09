@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   X, 
   Plus, 
@@ -12,13 +12,32 @@ import {
   Bed,
   Bath,
   Users,
-  Maximize2
+  Maximize2,
+  Image as ImageIcon,
+  AlertCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { PropertyType, RentMode } from '../types';
+import { COUNTRIES_AND_CITIES } from '../data/locations';
+
+const PRESET_PHOTOS: Record<PropertyType, string[]> = {
+  apartment: [
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1000&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1000&auto=format&fit=crop&q=80'
+  ],
+  house: [
+    'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=1000&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1000&auto=format&fit=crop&q=80'
+  ],
+  hotel: [
+    'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1000&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1000&auto=format&fit=crop&q=80'
+  ]
+};
 
 export const AddListingModal: React.FC = () => {
   const { isAddListingOpen, setIsAddListingOpen, addProperty, setSelectedProperty } = useApp();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [type, setType] = useState<PropertyType>('apartment');
   const [rentMode, setRentMode] = useState<RentMode>('both');
@@ -26,6 +45,7 @@ export const AddListingModal: React.FC = () => {
   const [description, setDescription] = useState('');
   const [priceDaily, setPriceDaily] = useState<number>(4500);
   const [priceMonthly, setPriceMonthly] = useState<number>(90000);
+  const [country, setCountry] = useState('Россия');
   const [city, setCity] = useState('Москва');
   const [district, setDistrict] = useState('Центральный район');
   const [address, setAddress] = useState('ул. Арбат, д. 25');
@@ -39,31 +59,34 @@ export const AddListingModal: React.FC = () => {
     'Wi-Fi 500 Мбит/с', 'Кондиционер', 'Кухня', 'Стиральная машина'
   ]);
   const [customPhotoUrl, setCustomPhotoUrl] = useState('');
-  const [images, setImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1000&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1000&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1000&auto=format&fit=crop&q=80'
-  ]);
+  const [images, setImages] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   if (!isAddListingOpen) return null;
 
-  const cityCoordinates: Record<string, { lat: number; lng: number }> = {
-    'Москва': { lat: 55.7512, lng: 37.6184 },
-    'Санкт-Петербург': { lat: 59.9311, lng: 30.3609 },
-    'Сочи': { lat: 43.5855, lng: 39.7231 },
-    'Казань': { lat: 55.7963, lng: 49.1088 },
-    'Калининград': { lat: 54.7104, lng: 20.4522 },
+  const currentCountryData = COUNTRIES_AND_CITIES.find(c => c.name === country) || COUNTRIES_AND_CITIES[0];
+
+  const handleCountryChange = (newCountryName: string) => {
+    setCountry(newCountryName);
+    const countryObj = COUNTRIES_AND_CITIES.find(c => c.name === newCountryName);
+    if (countryObj && countryObj.cities.length > 0) {
+      const firstCity = countryObj.cities[0];
+      setCity(firstCity.name);
+      const jitterLat = (Math.random() - 0.5) * 0.04;
+      const jitterLng = (Math.random() - 0.5) * 0.04;
+      setLat(Number((firstCity.lat + jitterLat).toFixed(4)));
+      setLng(Number((firstCity.lng + jitterLng).toFixed(4)));
+    }
   };
 
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
-    if (cityCoordinates[newCity]) {
-      // Add slight random jitter so multiple listings don't perfectly stack
+    const cityObj = currentCountryData.cities.find(c => c.name === newCity);
+    if (cityObj) {
       const jitterLat = (Math.random() - 0.5) * 0.04;
       const jitterLng = (Math.random() - 0.5) * 0.04;
-      setLat(Number((cityCoordinates[newCity].lat + jitterLat).toFixed(4)));
-      setLng(Number((cityCoordinates[newCity].lng + jitterLng).toFixed(4)));
+      setLat(Number((cityObj.lat + jitterLat).toFixed(4)));
+      setLng(Number((cityObj.lng + jitterLng).toFixed(4)));
     }
   };
 
@@ -92,43 +115,45 @@ export const AddListingModal: React.FC = () => {
     );
   };
 
-  const presetPhotos: Record<PropertyType, string[]> = {
-    apartment: [
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1000&auto=format&fit=crop&q=80'
-    ],
-    house: [
-      'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1000&auto=format&fit=crop&q=80'
-    ],
-    hotel: [
-      'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=1000&auto=format&fit=crop&q=80'
-    ]
-  };
-
   const handleAddCustomPhoto = () => {
     if (customPhotoUrl.trim()) {
       setImages(prev => [...prev, customPhotoUrl.trim()]);
       setCustomPhotoUrl('');
+      setError('');
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setImages(prev => [...prev, event.target!.result as string]);
+          setError('');
+        }
+      };
+      reader.readAsDataURL(file as Blob);
+    });
+  };
+
   const handleRemovePhoto = (index: number) => {
-    if (images.length <= 1) return;
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     if (!title.trim() || !description.trim() || !address.trim()) {
-      setError('Пожалуйста, заполните заголовок, описание и адрес объекта');
+      setError('Пожалуйста, заполните название, подробное описание и точный адрес жилья');
+      return;
+    }
+
+    if (images.length === 0) {
+      setError('Обязательно добавьте хотя бы 1 фотографию жилья! Без реальных фотографий публикация невозможна.');
       return;
     }
 
@@ -139,6 +164,7 @@ export const AddListingModal: React.FC = () => {
       rentMode,
       priceDaily: Number(priceDaily) || 0,
       priceMonthly: Number(priceMonthly) || 0,
+      country,
       city,
       district,
       address,
@@ -206,7 +232,7 @@ export const AddListingModal: React.FC = () => {
                     onClick={() => {
                       setType(item.val as PropertyType);
                       // Update default images to matching preset
-                      setImages(presetPhotos[item.val as PropertyType]);
+                      setImages(PRESET_PHOTOS[item.val as PropertyType]);
                     }}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between gap-3 transition-all cursor-pointer ${
                       isSel
@@ -293,53 +319,72 @@ export const AddListingModal: React.FC = () => {
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-rose-600" />
-                <span>3. Местоположение и точная геолокация</span>
+                <span>3. Страна, город и геолокация</span>
               </label>
-              <span className="text-[11px] text-slate-500">Отобразится на интерактивной карте</span>
+              <span className="text-[11px] text-slate-500">Автоматически позиционируется на карте</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Город</label>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Страна</label>
                 <select
-                  value={city}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-hidden cursor-pointer"
+                  id="select-listing-country"
+                  value={country}
+                  onChange={(e) => handleCountryChange(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-hidden cursor-pointer"
                 >
-                  <option value="Москва">Москва</option>
-                  <option value="Санкт-Петербург">Санкт-Петербург</option>
-                  <option value="Сочи">Сочи</option>
-                  <option value="Казань">Казань</option>
-                  <option value="Калининград">Калининград</option>
+                  {COUNTRIES_AND_CITIES.map(c => (
+                    <option key={c.code} value={c.name}>
+                      {c.flag} {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Район / Метро</label>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Город</label>
+                <select
+                  id="select-listing-city"
+                  value={city}
+                  onChange={(e) => handleCityChange(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-hidden cursor-pointer"
+                >
+                  {currentCountryData.cities.map(ct => (
+                    <option key={ct.name} value={ct.name}>
+                      {ct.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Район / Метро / Пляж</label>
                 <input
                   type="text"
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
-                  placeholder="Например: Центральный"
+                  placeholder="Например: Центральный или Dubai Marina"
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Улица и номер дома</label>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Точный адрес (улица, дом)</label>
                 <input
                   id="input-listing-address"
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="ул. Арбат, 25"
+                  placeholder="ул. Арбат, д. 25"
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-hidden"
                 />
               </div>
             </div>
 
             {/* Coordinates Lat / Lng with auto-pin */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase">Широта (Latitude)</label>
                 <input
@@ -434,50 +479,104 @@ export const AddListingModal: React.FC = () => {
             </div>
           </div>
 
-          {/* 7. Photos */}
-          <div className="space-y-3">
+          {/* 7. Photos - MANDATORY REQUIREMENT */}
+          <div className={`space-y-3 p-4 rounded-2xl border ${images.length === 0 ? 'bg-rose-50/50 border-rose-300' : 'bg-slate-50/70 border-slate-200'}`}>
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Фотографии объекта ({images.length})
-              </label>
-              <span className="text-[11px] text-slate-500">Первое фото — обложка</span>
+              <div className="flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-rose-600" />
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  6. Фотографии объекта <span className="text-rose-600 font-extrabold">* Обязательно</span>
+                </label>
+              </div>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${images.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                {images.length > 0 ? `Загружено: ${images.length} фото` : 'Требуется фото'}
+              </span>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {images.map((img, i) => (
-                <div key={i} className="relative aspect-4/3 rounded-xl overflow-hidden group border border-slate-200">
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(i)}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    ×
-                  </button>
-                  {i === 0 && (
-                    <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-slate-900/80 text-white px-1.5 py-0.5 rounded">
-                      Главное
-                    </span>
-                  )}
-                </div>
-              ))}
+            {images.length === 0 && (
+              <div className="p-3 rounded-xl bg-rose-100/70 border border-rose-300 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>При добавлении жилья <strong>обязательно загрузите фото</strong>. Без фото объявление не публикуется на карте.</span>
+              </div>
+            )}
+
+            {/* Photo thumbnails */}
+            {images.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {images.map((img, i) => (
+                  <div key={i} className="relative aspect-4/3 rounded-xl overflow-hidden group border border-slate-200 shadow-xs">
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(i)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      title="Удалить фото"
+                    >
+                      ×
+                    </button>
+                    {i === 0 && (
+                      <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-slate-900/80 text-white px-1.5 py-0.5 rounded">
+                        Главное фото
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload from device / Drag & Drop */}
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const files = e.dataTransfer.files;
+                if (!files || files.length === 0) return;
+                Array.from(files).forEach((file) => {
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    if (ev.target?.result) {
+                      setImages(prev => [...prev, ev.target!.result as string]);
+                      setError('');
+                    }
+                  };
+                  reader.readAsDataURL(file as Blob);
+                });
+              }}
+              className="border-2 border-dashed border-rose-300 hover:border-rose-500 bg-white p-4 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors"
+            >
+              <Upload className="w-6 h-6 text-rose-600 mb-1" />
+              <p className="text-xs font-bold text-slate-800">
+                Нажмите для выбора фото с телефона или компьютера
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Или перетащите файлы изображений сюда (JPG, PNG, WebP)
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </div>
 
             {/* Add photo URL */}
             <div className="flex gap-2">
               <input
                 type="url"
-                placeholder="Вставьте ссылку на фото (URL)"
+                placeholder="Или вставьте прямую ссылку на фото (URL)"
                 value={customPhotoUrl}
                 onChange={(e) => setCustomPhotoUrl(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs outline-hidden"
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white outline-hidden"
               />
               <button
                 type="button"
                 onClick={handleAddCustomPhoto}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
               >
-                + Добавить
+                + Добавить URL
               </button>
             </div>
           </div>

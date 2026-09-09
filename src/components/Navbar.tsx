@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Building2, 
   Heart, 
   MessageSquare, 
   User, 
-  PlusCircle, 
   Search, 
   ShieldCheck, 
   Menu, 
-  X,
-  LogOut,
-  Sparkles
+  X, 
+  LogOut, 
+  Sparkles, 
+  Settings,
+  Globe,
+  Plus,
+  Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -21,17 +24,27 @@ export const Navbar: React.FC = () => {
     setAuthModalTab, 
     setIsProfileOpen, 
     setProfileTab,
-    setIsAddListingOpen, 
-    setIsChatOpen,
     threads,
-    logout
+    logout,
+    language,
+    setLanguage,
+    showToast,
+    t
   } = useApp();
 
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [userDropdownOpen, setUserDropdownOpen] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
 
   const totalUnread = threads.reduce((acc, t) => acc + (t.unreadCountTenant || 0), 0);
   const favoritesCount = user?.favorites?.length || 0;
+
+  const currentLangLabel = {
+    ru: { code: 'RU', flag: '🇷🇺', name: 'Русский' },
+    en: { code: 'EN', flag: '🇬🇧', name: 'English' },
+    hy: { code: 'HY', flag: '🇦🇲', name: 'Հայերեն' },
+    ka: { code: 'KA', flag: '🇬🇪', name: 'ქართული' }
+  }[language] || { code: 'RU', flag: '🇷🇺', name: 'Русский' };
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
@@ -70,23 +83,55 @@ export const Navbar: React.FC = () => {
 
           {/* Right Action buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
-            
-            {/* Post listing button */}
-            <button
-              id="btn-add-listing-nav"
-              onClick={() => {
-                if (!user) {
-                  setIsAuthModalOpen(true);
-                } else {
-                  setIsAddListingOpen(true);
-                }
-              }}
-              className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4 text-rose-600" />
-              <span>Сдать жилье</span>
-            </button>
 
+            {/* Language Switcher Dropdown */}
+            <div className="relative">
+              <button
+                id="btn-lang-switcher"
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+                title="Выбрать язык сайта (Русский, English, Հայերեն, ქართული)"
+              >
+                <span>{currentLangLabel.flag}</span>
+                <span className="hidden sm:inline">{currentLangLabel.code}</span>
+              </button>
+
+              {langDropdownOpen && (
+                <div 
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  onMouseLeave={() => setLangDropdownOpen(false)}
+                >
+                  <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Язык интерфейса
+                  </div>
+                  {[
+                    { code: 'ru', flag: '🇷🇺', name: 'Русский' },
+                    { code: 'en', flag: '🇬🇧', name: 'English' },
+                    { code: 'hy', flag: '🇦🇲', name: 'Հայերեն' },
+                    { code: 'ka', flag: '🇬🇪', name: 'ქართული' },
+                  ].map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => {
+                        setLanguage(l.code as any);
+                        setLangDropdownOpen(false);
+                        showToast(`Язык: ${l.name}`);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between cursor-pointer ${
+                        language === l.code ? 'bg-rose-50 text-rose-700' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{l.flag}</span>
+                        <span>{l.name}</span>
+                      </span>
+                      {language === l.code && <Check className="w-3.5 h-3.5 text-rose-600" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
             {/* Favorites */}
             <button
               id="btn-favorites-nav"
@@ -109,18 +154,19 @@ export const Navbar: React.FC = () => {
               )}
             </button>
 
-            {/* Chat button */}
+            {/* Chat button (Directly opens Profile Chat) */}
             <button
               id="btn-chat-nav"
               onClick={() => {
                 if (!user) {
                   setIsAuthModalOpen(true);
                 } else {
-                  setIsChatOpen(true);
+                  setProfileTab('chat');
+                  setIsProfileOpen(true);
                 }
               }}
               className="relative p-2 rounded-xl text-slate-600 hover:text-rose-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Сообщения"
+              title="Сообщения в личном кабинете"
             >
               <MessageSquare className="w-5 h-5" />
               {totalUnread > 0 && (
@@ -145,14 +191,14 @@ export const Navbar: React.FC = () => {
                   />
                   <div className="text-left hidden sm:block">
                     <p className="text-xs font-semibold text-slate-800 line-clamp-1 max-w-[120px]">{user.name}</p>
-                    <p className="text-[10px] text-emerald-600 font-medium">Верифицирован</p>
+                    <p className="text-[10px] text-emerald-600 font-medium">Кабинет</p>
                   </div>
                 </button>
 
                 {/* Dropdown */}
                 {userDropdownOpen && (
                   <div 
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                     onMouseLeave={() => setUserDropdownOpen(false)}
                   >
                     <div className="px-4 py-2 border-b border-slate-100">
@@ -170,7 +216,7 @@ export const Navbar: React.FC = () => {
                       className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-rose-600 flex items-center gap-2"
                     >
                       <User className="w-4 h-4" />
-                      Личный кабинет
+                      Мой профиль
                     </button>
 
                     <button
@@ -182,8 +228,21 @@ export const Navbar: React.FC = () => {
                       }}
                       className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-rose-600 flex items-center gap-2"
                     >
-                      <Building2 className="w-4 h-4" />
-                      Мои объявления
+                      <Building2 className="w-4 h-4 text-blue-600" />
+                      Сдать жилье / Мои объекты
+                    </button>
+
+                    <button
+                      id="menu-item-profile-chat"
+                      onClick={() => {
+                        setProfileTab('chat');
+                        setIsProfileOpen(true);
+                        setUserDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-rose-600 flex items-center gap-2"
+                    >
+                      <MessageSquare className="w-4 h-4 text-indigo-600" />
+                      Чат и сообщения
                     </button>
 
                     <button
@@ -197,6 +256,19 @@ export const Navbar: React.FC = () => {
                     >
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />
                       Мои бронирования
+                    </button>
+
+                    <button
+                      id="menu-item-settings"
+                      onClick={() => {
+                        setProfileTab('settings');
+                        setIsProfileOpen(true);
+                        setUserDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 hover:text-rose-600 flex items-center gap-2"
+                    >
+                      <Settings className="w-4 h-4 text-slate-500" />
+                      Настройки профиля
                     </button>
 
                     <div className="border-t border-slate-100 my-1"></div>
@@ -258,13 +330,58 @@ export const Navbar: React.FC = () => {
             <button
               onClick={() => {
                 if (!user) setIsAuthModalOpen(true);
-                else setIsAddListingOpen(true);
+                else {
+                  setProfileTab('profile');
+                  setIsProfileOpen(true);
+                }
                 setMobileMenuOpen(false);
               }}
               className="w-full py-2.5 px-4 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2"
             >
-              <PlusCircle className="w-4 h-4 text-rose-600" />
-              Сдать квартиру, дом или мини-отель
+              <User className="w-4 h-4 text-rose-600" />
+              Личный кабинет
+            </button>
+            <button
+              onClick={() => {
+                if (!user) setIsAuthModalOpen(true);
+                else {
+                  setProfileTab('listings');
+                  setIsProfileOpen(true);
+                }
+                setMobileMenuOpen(false);
+              }}
+              className="w-full py-2.5 px-4 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2"
+            >
+              <Building2 className="w-4 h-4 text-blue-600" />
+              Сдать жилье (в профиле)
+            </button>
+            <button
+              onClick={() => {
+                if (!user) setIsAuthModalOpen(true);
+                else {
+                  setProfileTab('chat');
+                  setIsProfileOpen(true);
+                }
+                setMobileMenuOpen(false);
+              }}
+              className="w-full py-2.5 px-4 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2"
+            >
+              <MessageSquare className="w-4 h-4 text-indigo-600" />
+              Чат и сообщения
+            </button>
+            <button
+              onClick={() => {
+                if (!user) setIsAuthModalOpen(true);
+                else {
+                  setProfileTab('settings');
+                  setIsProfileOpen(true);
+                }
+                setMobileMenuOpen(false);
+              }}
+              className="w-full py-2.5 px-4 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2"
+            >
+              <Settings className="w-4 h-4 text-slate-500" />
+              Настройки аккаунта
             </button>
             <button
               onClick={() => {
@@ -278,7 +395,7 @@ export const Navbar: React.FC = () => {
               className="w-full py-2.5 px-4 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Мои поездки и безопасные бронирования
+              Мои поездки и бронирования
             </button>
           </div>
         )}

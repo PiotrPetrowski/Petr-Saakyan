@@ -36,6 +36,7 @@ export interface Property {
   rentMode: RentMode;
   priceDaily: number;
   priceMonthly: number;
+  country?: string;
   city: string;
   district: string;
   address: string;
@@ -56,6 +57,21 @@ export interface Property {
   isAvailable: boolean;
 }
 
+export type AppLanguage = 'ru' | 'en' | 'hy' | 'ka';
+
+export interface UserSettings {
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  smsNotifications: boolean;
+  marketingEmails: boolean;
+  twoFactorAuth: boolean;
+  currency: 'RUB' | 'USD' | 'EUR' | 'KZT' | 'AMD' | 'GEL' | 'AED' | 'TRY';
+  language: AppLanguage;
+  hidePhoneUntilBooking: boolean;
+  payoutCardNumber: string;
+  payoutPhoneSbp: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -68,6 +84,7 @@ export interface UserProfile {
   isVerified: boolean;
   favorites: string[];
   createdAt: string;
+  settings?: UserSettings;
 }
 
 export interface Booking {
@@ -127,6 +144,7 @@ export interface ChatThread {
 
 export interface SearchFilters {
   query: string;
+  country: string;
   city: string;
   rentMode: 'all' | 'daily' | 'monthly';
   propertyType: 'all' | PropertyType;
@@ -135,4 +153,22 @@ export interface SearchFilters {
   guests: number;
   amenities: string[];
   sortBy: 'popular' | 'price_asc' | 'price_desc' | 'rating';
+}
+
+export interface CityLocation {
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+export interface CountryWithCities {
+  code: string;
+  name: string;
+  flag: string;
+  center?: {
+    lat: number;
+    lng: number;
+    zoom: number;
+  };
+  cities: CityLocation[];
 }

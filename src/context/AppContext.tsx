@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
-  Property, ReviewItem, UserProfile, Booking, ChatThread, ChatMessage, SearchFilters, RentMode 
+  Property, ReviewItem, UserProfile, Booking, ChatThread, ChatMessage, SearchFilters, RentMode, AppLanguage 
 } from '../types';
 import { 
   INITIAL_USER, INITIAL_PROPERTIES, INITIAL_REVIEWS, INITIAL_THREADS, INITIAL_MESSAGES, INITIAL_BOOKINGS 
 } from '../data/mockData';
+import { TRANSLATIONS, Translations } from '../i18n/translations';
 
 interface AppContextType {
   user: UserProfile | null;
@@ -14,6 +15,12 @@ interface AppContextType {
   threads: ChatThread[];
   messages: Record<string, ChatMessage[]>;
   filters: SearchFilters;
+  
+  // Internationalization
+  language: AppLanguage;
+  setLanguage: (lang: AppLanguage) => void;
+  t: (key: keyof Translations) => string;
+  translations: Translations;
   
   // UI states
   selectedProperty: Property | null;
@@ -28,8 +35,10 @@ interface AppContextType {
   setIsAddListingOpen: (open: boolean) => void;
   isProfileOpen: boolean;
   setIsProfileOpen: (open: boolean) => void;
-  profileTab: 'profile' | 'listings' | 'tenant_bookings' | 'host_bookings' | 'favorites';
-  setProfileTab: (tab: 'profile' | 'listings' | 'tenant_bookings' | 'host_bookings' | 'favorites') => void;
+  profileTab: 'profile' | 'listings' | 'tenant_bookings' | 'host_bookings' | 'favorites' | 'settings' | 'chat';
+  setProfileTab: (tab: 'profile' | 'listings' | 'tenant_bookings' | 'host_bookings' | 'favorites' | 'settings' | 'chat') => void;
+  isObjectsDrawerOpen: boolean;
+  setIsObjectsDrawerOpen: (open: boolean) => void;
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
   activeThreadId: string | null;
@@ -61,6 +70,7 @@ interface AppContextType {
   login: (provider: 'email' | 'google' | 'telegram' | 'vk' | 'github', email?: string, name?: string) => void;
   logout: () => void;
   updateProfile: (updated: Partial<UserProfile>) => void;
+  updateSettings: (settings: Partial<UserProfile['settings']>) => void;
   recoverPassword: (emailOrPhone: string, newPass: string) => boolean;
   toggleFavorite: (propertyId: string) => void;
   addProperty: (propertyData: Omit<Property, 'id' | 'createdAt' | 'rating' | 'reviewsCount' | 'host' | 'isAvailable'>) => Property;
@@ -93,6 +103,7 @@ interface AppContextType {
 
 const defaultFilters: SearchFilters = {
   query: '',
+  country: '',
   city: '',
   rentMode: 'all',
   propertyType: 'all',
@@ -113,8 +124,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [properties, setProperties] = useState<Property[]>(() => {
-    const saved = localStorage.getItem('rent_app_properties');
-    return saved ? JSON.parse(saved) : INITIAL_PROPERTIES;
+    const saved = localStorage.getItem('rent_app_properties_v3');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= INITIAL_PROPERTIES.length) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_PROPERTIES;
   });
 
   const [reviews, setReviews] = useState<ReviewItem[]>(() => {
@@ -139,6 +160,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
 
+  // Internationalization state
+  const [language, setLanguageState] = useState<AppLanguage>(() => {
+    const saved = localStorage.getItem('rent_app_lang') as AppLanguage;
+    if (saved && (saved === 'ru' || saved === 'en' || saved === 'hy' || saved === 'ka')) {
+      return saved;
+    }
+    return (user?.settings?.language as AppLanguage) || 'ru';
+  });
+
+  const setLanguage = (lang: AppLanguage) => {
+    setLanguageState(lang);
+    localStorage.setItem('rent_app_lang', lang);
+  };
+
+  const translations = TRANSLATIONS[language] || TRANSLATIONS.ru;
+  const t = (key: keyof Translations): string => {
+    return translations[key] || TRANSLATIONS.ru[key] || key;
+  };
+
   // UI state
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -146,7 +186,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isPasswordRecoveryOpen, setIsPasswordRecoveryOpen] = useState(false);
   const [isAddListingOpen, setIsAddListingOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [profileTab, setProfileTab] = useState<'profile' | 'listings' | 'tenant_bookings' | 'host_bookings' | 'favorites'>('profile');
+  const [profileTab, setProfileTab] = useState<'profile' | 'listings' | 'tenant_bookings' | 'host_bookings' | 'favorites' | 'settings' | 'chat'>('profile');
+  const [isObjectsDrawerOpen, setIsObjectsDrawerOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -154,7 +195,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [bookingDraft, setBookingDraft] = useState<any>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reviewingProperty, setReviewingProperty] = useState<Property | null>(null);
-  const [viewMode, setViewMode] = useState<'split' | 'grid' | 'map'>('split');
+  const [viewMode, setViewMode] = useState<'split' | 'grid' | 'map'>('map');
   const [highlightedPropertyId, setHighlightedPropertyId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -175,7 +216,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [user]);
 
   useEffect(() => {
-    localStorage.setItem('rent_app_properties', JSON.stringify(properties));
+    localStorage.setItem('rent_app_properties_v3', JSON.stringify(properties));
   }, [properties]);
 
   useEffect(() => {
@@ -240,6 +281,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!user) return;
     setUser({ ...user, ...updated });
     showToast('Профиль успешно обновлен');
+  };
+
+  const updateSettings = (newSettings: Partial<UserProfile['settings']>) => {
+    if (!user) return;
+    const currentSettings = user.settings || {
+      emailNotifications: true,
+      pushNotifications: true,
+      smsNotifications: true,
+      marketingEmails: false,
+      twoFactorAuth: false,
+      currency: 'RUB',
+      language: 'ru',
+      hidePhoneUntilBooking: true,
+      payoutCardNumber: '',
+      payoutPhoneSbp: ''
+    };
+    const updated = {
+      ...user,
+      settings: {
+        ...currentSettings,
+        ...newSettings
+      }
+    };
+    setUser(updated);
+    showToast('Настройки успешно сохранены');
   };
 
   const recoverPassword = (emailOrPhone: string, newPass: string): boolean => {
@@ -513,6 +579,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveThreadId(existing.id);
     }
 
+    setIsProfileOpen(true);
+    setProfileTab('chat');
     setIsChatOpen(true);
   };
 
@@ -529,6 +597,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       threads,
       messages,
       filters,
+      language,
+      setLanguage,
+      t,
+      translations,
       selectedProperty,
       setSelectedProperty,
       isAuthModalOpen,
@@ -543,6 +615,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsProfileOpen,
       profileTab,
       setProfileTab,
+      isObjectsDrawerOpen,
+      setIsObjectsDrawerOpen,
       isChatOpen,
       setIsChatOpen,
       activeThreadId,
@@ -566,6 +640,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       login,
       logout,
       updateProfile,
+      updateSettings,
       recoverPassword,
       toggleFavorite,
       addProperty,
