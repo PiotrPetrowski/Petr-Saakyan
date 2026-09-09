@@ -1,0 +1,6 @@
+{
+  "name": "АрендаЖилья - Сервис аренды и бронирования",
+  "description": "Адаптивная платформа посуточной и помесячной аренды квартир, домов и мини-гостиниц с интерактивной картой, чатом, отзывами и безопасной оплатой.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
